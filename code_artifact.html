@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夏夜捉蝉：抓知了猴</title>
+    <!-- 引入 Tailwind CSS 带来绝佳的响应式视觉设计 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
+        .font-zcool {
+            font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+        }
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 flex flex-col justify-between min-h-screen overflow-hidden select-none">
+
+    <header class="bg-slate-900 border-b border-slate-800 p-4 shrink-0 shadow-lg">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🔦</span>
+                <div>
+                    <h1 class="text-lg font-bold text-amber-400 font-zcool tracking-wider">夏夜抓知了猴</h1>
+                    <p class="text-xs text-slate-400">回忆鲁中平原夏夜情怀</p>
+                </div>
+            </div>
+            <!-- HUD 数据指示器 -->
+            <div class="flex gap-3 text-sm">
+                <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-center">
+                    <p class="text-[10px] text-slate-500 uppercase">收获</p>
+                    <p id="hud-count" class="font-bold text-amber-400 text-base">0 只</p>
+                </div>
+                <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-center">
+                    <p class="text-[10px] text-slate-500 uppercase">时间</p>
+                    <p id="hud-time" class="font-bold text-emerald-400 text-base">60 秒</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 w-full max-w-md mx-auto relative flex flex-col justify-center p-3 overflow-hidden">
+        
+        <!-- 欢迎屏幕 -->
+        <div id="screen-welcome" class="absolute inset-3 bg-slate-900/95 border border-slate-800 rounded-2xl flex flex-col justify-between p-6 z-30 shadow-2xl overflow-y-auto">
+            <div class="text-center my-auto flex flex-col items-center gap-4">
+                <div class="w-24 h-24 bg-amber-500/10 rounded-full border-2 border-amber-500/30 flex items-center justify-center text-5xl animate-pulse">
+                    🦗
+                </div>
+                <h2 class="text-3xl font-black text-amber-400 font-zcool tracking-wide mt-2">逮知了猴啦！</h2>
+                <p class="text-slate-300 text-sm leading-relaxed max-w-xs">
+                    夜幕降临，山东的小树林里开始热闹起来。<br>
+                    拿起手电，看看哪个树干上有知了猴在爬，地上的小泥洞里是不是探出了小脑袋？
+                </p>
+                <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800 text-left text-xs text-slate-400 space-y-1.5 w-full">
+                    <p class="font-semibold text-slate-200">💡 玩法说明：</p>
+                    <p>1. 拖动手指/鼠标移动手电筒寻找目标。</p>
+                    <p>2. 点树干上爬行的<span class="text-amber-400 font-semibold">知了猴</span>直接抓捕。</p>
+                    <p>3. 点地面的<span class="text-emerald-400 font-semibold">小泥洞</span>可以刨土，片刻后知了猴会爬出来。</p>
+                    <p>4. 抓够了就去大铁锅<span class="text-orange-400 font-semibold">油炸金蝉</span>，嘎嘣脆！</p>
+                </div>
+            </div>
+            <button onclick="startGame()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-bold py-3.5 px-6 rounded-xl text-lg shadow-lg transform active:scale-[0.98] transition-all shrink-0">
+                带上手电 出发！
+            </button>
+        </div>
+
+        <!-- 游戏运行屏幕 -->
+        <div id="screen-game" class="relative flex-1 bg-black rounded-2xl border border-slate-800 overflow-hidden shadow-inner flex flex-col justify-end">
+            <!-- Canvas 渲染层 -->
+            <canvas id="game-canvas" class="absolute inset-0 w-full h-full block touch-none z-10"></canvas>
+            
+            <!-- 引导点击捕获区域说明（只在刚开始显示） -->
+            <div id="guide-tip" class="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-950/80 border border-slate-800 px-4 py-2 rounded-full text-xs text-amber-400 text-center pointer-events-none z-20 animate-bounce">
+                👆 拖动手指照亮树干与地面
+            </div>
+
+            <!-- 点击泥洞刨土进度条 (浮动在游戏层) -->
+            <div id="dig-progress" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-800 rounded-lg p-2 flex items-center gap-2 z-20 shadow-lg">
+                <span class="text-sm">⛏️ 刨土中:</span>
+                <div class="w-24 bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div id="dig-bar" class="bg-amber-400 h-full w-0 transition-all duration-100"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 炸金蝉厨房屏幕 -->
+        <div id="screen-kitchen" class="absolute inset-3 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between p-6 z-40 hidden shadow-2xl overflow-y-auto">
+            <div class="text-center flex flex-col items-center gap-3">
+                <span class="text-5xl animate-bounce">🍳</span>
+                <h3 class="text-2xl font-bold text-orange-400 font-zcool tracking-wider">大铁锅油炸金蝉</h3>
+                <p class="text-slate-400 text-xs">下酒神菜，山东硬菜！</p>
+
+                <!-- 厨房展示台 -->
+                <div class="w-full bg-slate-950 rounded-xl p-4 border border-slate-800 flex justify-around items-center my-2 shadow-inner relative overflow-hidden">
+                    <!-- 柴火堆与铁锅装饰 (SVG) -->
+                    <div class="text-center">
+                        <p class="text-[10px] text-slate-500">塑料瓶里的活蝉</p>
+                        <p id="kitchen-raw" class="text-2xl font-black text-amber-400 mt-1">0</p>
+                    </div>
+                    <div class="text-center border-l border-slate-800 pl-6">
+                        <p class="text-[10px] text-slate-500">盘子里的金蝉</p>
+                        <p id="kitchen-fried" class="text-2xl font-black text-orange-400 mt-1">0</p>
+                    </div>
+                </div>
+
+                <!-- 模拟铁锅油炸动画区 -->
+                <div class="w-full h-32 bg-amber-950/30 rounded-xl border border-amber-950/50 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div id="fire-glow" class="absolute bottom-0 inset-x-0 h-4 bg-orange-600/30 blur-md animate-pulse"></div>
+                    <div class="z-10 text-center">
+                        <div id="oil-sizzle-txt" class="text-xs text-amber-500 italic animate-pulse">锅热了，油在冒泡...</div>
+                        <div id="fry-animation-area" class="flex gap-1.5 justify-center mt-2 h-10"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 升级选项 -->
+            <div class="w-full space-y-2 my-2">
+                <h4 class="text-xs font-semibold text-slate-400 text-left">装备升级：</h4>
+                <div class="flex gap-2">
+                    <button onclick="upgradeFlashlight()" id="btn-upgrade-light" class="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-lg flex flex-col items-center justify-center hover:bg-slate-800 text-center">
+                        <span class="text-sm">🔦 扩充手电筒</span>
+                        <span id="txt-upgrade-light-cost" class="text-[10px] text-amber-400 mt-1">消耗 5 只活蝉</span>
+                    </button>
+                    <button onclick="upgradeShovel()" id="btn-upgrade-shovel" class="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-lg flex flex-col items-center justify-center hover:bg-slate-800 text-center">
+                        <span class="text-sm">⛏️ 升级合金铲</span>
+                        <span id="txt-upgrade-shovel-cost" class="text-[10px] text-emerald-400 mt-1">消耗 4 只活蝉</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-3 w-full shrink-0">
+                <button onclick="fryCicada()" id="btn-fry" class="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-black py-3 px-4 rounded-xl shadow-lg hover:from-orange-600 hover:to-amber-600 active:scale-[0.98] transition-all">
+                    下锅油炸！(1只)
+                </button>
+                <button onclick="finishGame()" class="flex-1 bg-slate-800 border border-slate-700 text-slate-200 font-bold py-3 px-4 rounded-xl hover:bg-slate-700 active:scale-[0.98] transition-all">
+                    炸完了 结算
+                </button>
+            </div>
+        </div>
+
+        <!-- 结算最终屏幕 -->
+        <div id="screen-gameover" class="absolute inset-3 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between p-6 z-50 hidden shadow-2xl overflow-y-auto">
+            <div class="text-center my-auto flex flex-col items-center gap-4">
+                <span class="text-6xl animate-bounce">🍺</span>
+                <h3 class="text-3xl font-bold text-amber-400 font-zcool tracking-wider">夏夜大丰收</h3>
+                
+                <div class="w-full bg-slate-950 rounded-xl p-5 border border-slate-800 space-y-3">
+                    <div>
+                        <p class="text-xs text-slate-500">香喷喷的脆皮金蝉</p>
+                        <p id="final-fried" class="text-4xl font-black text-orange-400">0 只</p>
+                    </div>
+                    <div class="border-t border-slate-800 pt-2 flex justify-between text-sm text-slate-400">
+                        <span>没用完的活蝉:</span>
+                        <span id="final-raw" class="font-bold text-slate-200">0 只</span>
+                    </div>
+                </div>
+
+                <div class="text-center px-4">
+                    <p class="text-xs text-slate-500">解锁称号</p>
+                    <p id="achievement-title" class="text-xl font-bold text-emerald-400 font-zcool tracking-wide mt-1">口水流了一地</p>
+                    <p id="achievement-desc" class="text-xs text-slate-400 mt-2 leading-relaxed">今晚抓得不多，连盘子都没铺满，快点回去多练练手艺！</p>
+                </div>
+            </div>
+
+            <button onclick="restartGame()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 font-bold py-3.5 px-6 rounded-xl text-lg shadow-lg transform active:scale-[0.98] transition-all shrink-0">
+                再来一晚
+            </button>
+        </div>
+
+    </main>
+
+    <footer class="p-3 text-center text-[10px] text-slate-600 shrink-0">
+        <div class="max-w-md mx-auto">
+            <p>2026年夏夜摸金蝉小游戏 · 纯网页绿色免安装版</p>
+        </div>
+    </footer>
+
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        const sound = {
+            playClick() {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            },
+            playCatch() {
+                initAudio();
+                const now = audioCtx.currentTime;
+                // 叮咚声
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc1.frequency.setValueAtTime(523.25, now); // C5
+                osc1.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc2.frequency.setValueAtTime(783.99, now + 0.16); // G5
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                osc1.start(now);
+                osc1.stop(now + 0.3);
+                osc2.start(now + 0.08);
+                osc2.stop(now + 0.3);
+            },
+            playDig() {
+                initAudio();
+                // 模拟沙沙的铲土声
+                const bufferSize = audioCtx.sampleRate * 0.12;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 400;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            },
+            playSizzle() {
+                initAudio();
+                // 油炸时的滋啦白噪声
+                const now = audioCtx.currentTime;
+                const bufferSize = audioCtx.sampleRate * 1.5;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1200;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0.15, now + 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.005, now + 1.2);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            }
+        };
+    </script>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 统一的状态管理（单文件数据源）
+        const state = {
+            rawCicadas: 0,       // 塑料瓶里未炸的活蝉
+            friedCicadas: 0,     // 盘子里已经炸好的金蝉
+            timeLeft: 60,        // 剩余时间
+            flashlightRadius: 60, // 手电筒光圈半径
+            flashlightPos: { x: 0, y: 0 }, // 手电筒当前坐标
+            shovelSpeed: 1.5,    // 挖土所需的秒数
+            entities: [],        // 场景实体 (树上蝉、地上洞)
+            fireflies: [],       // 飘散的萤火虫
+            activeScreen: 'welcome',
+            digTarget: null,     // 当前正在刨的洞
+            digProgress: 0,      // 刨洞进度 (秒)
+            gameTimer: null,
+            animFrame: null,
+            upgradeCount: 0      // 升级次数
+        };
+
+        // 自适应画布尺寸 (双重机制绝对防止 0 宽高黑屏)
+        function resizeCanvas() {
+            const rect = canvas.parentNode.getBoundingClientRect();
+            canvas.width = rect.width || 380;
+            canvas.height = rect.height || 450;
+        }
+
+        // 页面刚加载时尝试初始化尺寸，如果 hidden 拿不到宽高，会在 startGame 激活界面时再次自愈
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 屏幕切换器
+        function showScreen(screenId) {
+            state.activeScreen = screenId;
+            document.getElementById('screen-welcome').classList.add('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-kitchen').classList.add('hidden');
+            document.getElementById('screen-gameover').classList.add('hidden');
+
+            const targetScreen = document.getElementById(`screen-${screenId}`);
+            if (targetScreen) targetScreen.classList.remove('hidden');
+        }
+
+        // --- 实体定义 (金蝉与泥洞) ---
+        class GameEntity {
+            constructor(type) {
+                this.type = type; // 'cicada' (树干上的知了) 或 'hole' (地面的小泥洞)
+                this.id = Math.random();
+                this.isCaught = false;
+                this.isDug = false; // 是否已经挖开
+                this.revealTimer = 0; // 挖开后爬出来的动画计时
+
+                this.reset();
+            }
+
+            reset() {
+                this.isCaught = false;
+                this.isDug = false;
+                this.revealTimer = 0;
+                
+                if (this.type === 'cicada') {
+                    // 树上蝉：刷在树皮层
+                    const treeCenter = canvas.width / 2;
+                    const treeWidth = canvas.width * 0.35;
+                    this.x = treeCenter + (Math.random() - 0.5) * (treeWidth * 0.7);
+                    // 树上的高度在顶部到地面上方之间
+                    this.y = Math.random() * (canvas.height * 0.55) + 30;
+                    this.speed = 4 + Math.random() * 8; // 向上爬的速度
+                } else {
+                    // 地上洞：刷在地面层上 (y > canvas.height * 0.8)
+                    this.x = Math.random() * (canvas.width - 40) + 20;
+                    this.y = canvas.height * 0.82 + Math.random() * (canvas.height * 0.12);
+                }
+            }
+
+            update(dt) {
+                if (this.type === 'cicada' && !this.isCaught) {
+                    this.y -= this.speed * dt;
+                    // 如果爬到树顶，在树底重新探出
+                    if (this.y < 20) {
+                        this.reset();
+                    }
+                }
+
+                if (this.type === 'hole' && this.isDug && !this.isCaught) {
+                    this.revealTimer += dt;
+                    if (this.revealTimer >= 0.8) {
+                        // 爬出来了，自动转化为普通在地上爬行的金蝉
+                        this.type = 'cicada';
+                        this.y = this.y - 10; // 爬到泥洞上方
+                        this.speed = 10; // 在地面爬的速度快一点
+                    }
+                }
+            }
+        }
+
+        // 氛围装饰：飞舞的萤火虫
+        class Firefly {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = 10 + Math.random() * 15;
+                this.pulse = Math.random();
+            }
+
+            update(dt) {
+                this.angle += (Math.random() - 0.5) * dt * 4;
+                this.x += Math.cos(this.angle) * this.speed * dt;
+                this.y += Math.sin(this.angle) * this.speed * dt;
+                this.pulse += dt * 3;
+
+                // 边界折返
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = canvas.height;
+            }
+        }
+
+        // --- 游戏过程初始化 ---
+        function startGame() {
+            sound.playClick();
+            state.rawCicadas = 0;
+            state.entities = [];
+            state.fireflies = [];
+            state.timeLeft = 60;
+            state.flashlightRadius = 60;
+            state.upgradeCount = 0;
+
+            showScreen('game');
+            
+            // 【核心修复】必须在屏幕显示出来（去除了 hidden 状态）之后，再计算 Canvas 的宽高
+            // 否则在 display: none 状态下，getBoundingClientRect() 拿到的宽高是 0
+            resizeCanvas();
+
+            // 初始手电筒位置默认居中，防止还没移动时手电筒偏离
+            state.flashlightPos = { x: canvas.width / 2, y: canvas.height / 2 };
+
+            // 产生萤火虫
+            for (let i = 0; i < 15; i++) {
+                state.fireflies.push(new Firefly());
+            }
+
+            // 初始放2只在树上
+            state.entities.push(new GameEntity('cicada'));
+            state.entities.push(new GameEntity('cicada'));
+            state.entities.push(new GameEntity('hole'));
+
+            updateHUD();
+
+            // 定时器控制
+            if (state.gameTimer) clearInterval(state.gameTimer);
+            state.gameTimer = setInterval(() => {
+                if (state.activeScreen === 'game') {
+                    state.timeLeft--;
+                    updateHUD();
+                    
+                    // 每隔几秒随机再探头一只或者树上刷出一只
+                    if (state.timeLeft % 8 === 0 && state.entities.length < 5) {
+                        state.entities.push(new GameEntity(Math.random() > 0.45 ? 'cicada' : 'hole'));
+                    }
+
+                    if (state.timeLeft <= 0) {
+                        clearInterval(state.gameTimer);
+                        goToKitchen();
+                    }
+                }
+            }, 1000);
+
+            // 开始帧动画
+            lastTime = performance.now();
+            if (state.animFrame) cancelAnimationFrame(state.animFrame);
+            state.animFrame = requestAnimationFrame(drawLoop);
+        }
+
+        // 更新头部 HUD 数据
+        function updateHUD() {
+            document.getElementById('hud-count').textContent = `${state.rawCicadas} 只`;
+            document.getElementById('hud-time').textContent = `${state.timeLeft} 秒`;
+        }
+
+        // --- 捕获点击判定与移动探测 ---
+        function handlePointerMove(e) {
+            if (state.activeScreen !== 'game') return;
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            state.flashlightPos.x = clientX - rect.left;
+            state.flashlightPos.y = clientY - rect.top;
+
+            // 如果当前在刨洞，但手电筒移开了
+            if (state.digTarget) {
+                const dist = Math.hypot(state.flashlightPos.x - state.digTarget.x, state.flashlightPos.y - state.digTarget.y);
+                if (dist > state.flashlightRadius) {
+                    cancelDigging();
+                }
+            }
+        }
+
+        function handlePointerStart(e) {
+            if (state.activeScreen !== 'game') return;
+            // 首次触发音频上下文（部分手机浏览器限制）
+            initAudio();
+
+            handlePointerMove(e);
+
+            // 如果点击引导未关闭，点击后隐藏
+            const tip = document.getElementById('guide-tip');
+            if (tip) tip.style.display = 'none';
+
+            // 检查照亮且被点中的实体
+            let clickedSomething = false;
+
+            state.entities.forEach(entity => {
+                if (entity.isCaught) return;
+
+                const distToLight = Math.hypot(state.flashlightPos.x - entity.x, state.flashlightPos.y - entity.y);
+                // 只有处于手电筒光晕中，才可见并可捉
+                if (distToLight <= state.flashlightRadius) {
+                    const distToClick = distToLight; // 已经用手电位置定位了
+
+                    if (distToClick < 45) { // 极佳的 45 像素指尖宽松容错
+                        clickedSomething = true;
+                        
+                        if (entity.type === 'cicada') {
+                            // 抓捕树上或刚爬出的知了猴
+                            entity.isCaught = true;
+                            state.rawCicadas++;
+                            sound.playCatch();
+                            updateHUD();
+                            createCatchTextEffect(entity.x, entity.y, '逮着啦！+1');
+                            
+                            // 延时重置并刷新
+                            setTimeout(() => {
+                                entity.reset();
+                            }, 1500);
+
+                        } else if (entity.type === 'hole' && !entity.isDug) {
+                            // 刨泥洞
+                            startDigging(entity);
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- 刨洞逻辑 ---
+        function startDigging(entity) {
+            state.digTarget = entity;
+            state.digProgress = 0;
+            document.getElementById('dig-progress').classList.remove('hidden');
+            document.getElementById('dig-bar').style.width = '0%';
+        }
+
+        function cancelDigging() {
+            state.digTarget = null;
+            state.digProgress = 0;
+            document.getElementById('dig-progress').classList.add('hidden');
+        }
+
+        function finishDigging() {
+            if (state.digTarget) {
+                state.digTarget.isDug = true;
+                sound.playCatch();
+                createCatchTextEffect(state.digTarget.x, state.digTarget.y, '爬出来了！');
+            }
+            cancelDigging();
+        }
+
+        // 创建飘浮文字反馈
+        const floatTexts = [];
+        function createCatchTextEffect(x, y, text) {
+            floatTexts.push({
+                x: x,
+                y: y - 10,
+                text: text,
+                alpha: 1.0,
+                speedY: -35
+            });
+        }
+
+        // 事件监听
+        canvas.addEventListener('mousedown', handlePointerStart);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('touchstart', (e) => {
+            handlePointerStart(e);
+            e.preventDefault();
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            handlePointerMove(e);
+            e.preventDefault();
+        }, { passive: false });
+
+        // --- 渲染渲染核心主循环 ---
+        let lastTime = 0;
+        function drawLoop(timestamp) {
+            if (state.activeScreen !== 'game') return;
+
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // 持续兜底，应对各种切换窗口后的尺寸变化
+            if (canvas.width === 0 || canvas.height === 0) {
+                resizeCanvas();
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 更新实体和刨洞进度
+            state.entities.forEach(entity => entity.update(dt));
+            state.fireflies.forEach(firefly => firefly.update(dt));
+
+            if (state.digTarget) {
+                state.digProgress += dt;
+                sound.playDig();
+                const pct = Math.min((state.digProgress / state.shovelSpeed) * 100, 100);
+                document.getElementById('dig-bar').style.style = `width: ${pct}%`;
+                document.getElementById('dig-bar').style.width = `${pct}%`;
+
+                if (state.digProgress >= state.shovelSpeed) {
+                    finishDigging();
+                }
+            }
+
+            // --- 绘图步骤：先画出彩色明亮世界，再画遮罩 ---
+
+            // 1. 绘制背景层 (夏夜星空与杨树林)
+            ctx.fillStyle = '#060810'; // 墨黑天空
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 远景树木丛生
+            ctx.fillStyle = '#0a0d16';
+            for (let i = 0; i < 6; i++) {
+                ctx.fillRect(20 + i * 70, 0, 15, canvas.height * 0.8);
+            }
+
+            // 主杨树干 (树干占中心1/3宽度)
+            const treeCenter = canvas.width / 2;
+            const treeWidth = canvas.width * 0.35;
+            ctx.fillStyle = '#1e1610'; // 树皮棕褐
+            ctx.fillRect(treeCenter - treeWidth / 2, 0, treeWidth, canvas.height * 0.82);
+
+            // 树皮凹凸凹横向条纹细节
+            ctx.strokeStyle = '#120d09';
+            ctx.lineWidth = 3;
+            for (let i = 1; i <= 15; i++) {
+                ctx.beginPath();
+                ctx.moveTo(treeCenter - treeWidth / 2, i * 30);
+                ctx.lineTo(treeCenter + treeWidth / 2, i * 30 + (Math.sin(i) * 10));
+                ctx.stroke();
+            }
+
+            // 地面草丛与泥土路
+            ctx.fillStyle = '#0f140a'; // 绿草地
+            ctx.fillRect(0, canvas.height * 0.82, canvas.width, canvas.height * 0.18);
+            ctx.fillStyle = '#120c06'; // 黄泥土
+            ctx.fillRect(0, canvas.height * 0.88, canvas.width, canvas.height * 0.12);
+
+            // 2. 绘制各种实体 (知了猴、洞)
+            state.entities.forEach(entity => {
+                if (entity.isCaught) return;
+
+                const dist = Math.hypot(state.flashlightPos.x - entity.x, state.flashlightPos.y - entity.y);
+                const isUnderLight = dist <= state.flashlightRadius;
+
+                if (entity.type === 'cicada') {
+                    // 绘制活色生香的知了猴
+                    ctx.save();
+                    ctx.translate(entity.x, entity.y);
+
+                    // 如果被照到了，发出微弱金光，否则暗夜保护色
+                    ctx.fillStyle = isUnderLight ? '#935c24' : '#221912';
+
+                    // 椭圆身体
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 10, 15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 头与眼睛
+                    ctx.fillStyle = isUnderLight ? '#a56c32' : '#2b211a';
+                    ctx.beginPath();
+                    ctx.arc(0, -12, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 六条腿 (点缀)
+                    ctx.strokeStyle = isUnderLight ? '#7c4819' : '#1d150f';
+                    ctx.lineWidth = 2;
+                    // 左腿
+                    ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(-14, -10); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(-16, -1); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(-8, 6); ctx.lineTo(-13, 10); ctx.stroke();
+                    // 右腿
+                    ctx.beginPath(); ctx.moveTo(6, -6); ctx.lineTo(14, -10); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(16, -1); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(13, 10); ctx.stroke();
+
+                    // 刚出土特有的金黄泥土碎屑
+                    if (isUnderLight) {
+                        ctx.fillStyle = '#dfaf42';
+                        ctx.beginPath();
+                        ctx.arc(-2, -2, 2, 0, Math.PI*2);
+                        ctx.arc(4, 3, 1.5, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+
+                } else if (entity.type === 'hole') {
+                    // 绘制泥土中的知了猴洞口
+                    ctx.save();
+                    ctx.translate(entity.x, entity.y);
+
+                    // 外圈隆起的一圈松软黄色泥土
+                    ctx.fillStyle = '#3a2717';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 11, 7, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 漆黑深邃的圆形小洞口
+                    ctx.fillStyle = '#080808';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 7, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 如果已经开始刨土，画出泥土翻出的颗粒
+                    if (entity.isDug) {
+                        ctx.fillStyle = '#614023';
+                        ctx.beginPath();
+                        ctx.arc(-8, -4, 2, 0, Math.PI*2);
+                        ctx.arc(9, 3, 2, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+
+                // 3. 如果在范围内，画出亮黄色的锁定瞄准环
+                if (isUnderLight) {
+                    ctx.save();
+                    ctx.strokeStyle = '#f39c12';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.arc(entity.x, entity.y, 22, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+
+            // 4. 【核心重构：夜景黑色遮罩与无冲突圆孔】
+            // 使用 Even-Odd 规则在黑色遮罩上完美“抠出”手电筒圆孔，100% 兼容所有手机和浏览器
+            ctx.save();
+            ctx.fillStyle = 'rgba(3, 5, 12, 0.97)'; // 深沉夜色
+            ctx.beginPath();
+            // 顺时针绘制外矩形
+            ctx.rect(0, 0, canvas.width, canvas.height);
+            // 绘制手电筒圆形
+            ctx.arc(state.flashlightPos.x, state.flashlightPos.y, state.flashlightRadius, 0, Math.PI * 2);
+            // 使用 'evenodd' 规则填充，自动将圆形内部镂空成透明通道
+            ctx.fill('evenodd');
+
+            // 5. 【核心重构：圈内羽化软边过渡】
+            // 在镂空出的地方绘制一层径向羽化光圈，使明暗交接处更有手电筒真实照明质感
+            const shineGrad = ctx.createRadialGradient(
+                state.flashlightPos.x, state.flashlightPos.y, state.flashlightRadius - 15,
+                state.flashlightPos.x, state.flashlightPos.y, state.flashlightRadius + 2
+            );
+            shineGrad.addColorStop(0, 'rgba(3, 5, 12, 0.0)'); // 内部完全透亮
+            shineGrad.addColorStop(0.5, 'rgba(3, 5, 12, 0.3)');
+            shineGrad.addColorStop(1, 'rgba(3, 5, 12, 0.97)'); // 边缘完美融入黑暗
+            ctx.fillStyle = shineGrad;
+            ctx.beginPath();
+            ctx.arc(state.flashlightPos.x, state.flashlightPos.y, state.flashlightRadius + 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 6. 萤火虫在黑暗之上飞行
+            state.fireflies.forEach(firefly => {
+                const isUnderLight = Math.hypot(state.flashlightPos.x - firefly.x, state.flashlightPos.y - firefly.y) < state.flashlightRadius;
+                
+                ctx.save();
+                // 萤火虫在手电下呈现原色，黑夜里闪闪发光
+                const intensity = (Math.sin(firefly.pulse) + 1.2) / 2.2;
+                ctx.shadowBlur = 8 * intensity;
+                ctx.shadowColor = '#d1f53d';
+                ctx.fillStyle = `rgba(209, 245, 61, ${intensity})`;
+                ctx.beginPath();
+                ctx.arc(firefly.x, firefly.y, 1.5 + intensity, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // 7. 渲染浮动文字反馈特效
+            for (let i = floatTexts.length - 1; i >= 0; i--) {
+                const ft = floatTexts[i];
+                ft.y += ft.speedY * dt;
+                ft.alpha -= dt * 0.8;
+
+                ctx.save();
+                ctx.font = 'bold 13px sans-serif';
+                ctx.fillStyle = `rgba(251, 191, 36, ${ft.alpha})`;
+                ctx.shadowBlur = 3;
+                ctx.shadowColor = 'black';
+                ctx.textAlign = 'center';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+
+                if (ft.alpha <= 0) {
+                    floatTexts.splice(i, 1);
+                }
+            }
+
+            state.animFrame = requestAnimationFrame(drawLoop);
+        }
+
+        // --- 进厨房烹饪流程 ---
+        function goToKitchen() {
+            sound.playClick();
+            cancelDigging();
+            if (state.animFrame) cancelAnimationFrame(state.animFrame);
+            showScreen('kitchen');
+            updateKitchenView();
+        }
+
+        function updateKitchenView() {
+            document.getElementById('kitchen-raw').textContent = state.rawCicadas;
+            document.getElementById('kitchen-fried').textContent = state.friedCicadas;
+
+            // 升级按钮禁用判断
+            const upgradeLightBtn = document.getElementById('btn-upgrade-light');
+            if (state.flashlightRadius >= 120) {
+                upgradeLightBtn.disabled = true;
+                document.getElementById('txt-upgrade-light-cost').textContent = "已升至满级";
+                upgradeLightBtn.classList.add('opacity-50');
+            } else {
+                document.getElementById('txt-upgrade-light-cost').textContent = "消耗 5 只活蝉";
+            }
+
+            const upgradeShovelBtn = document.getElementById('btn-upgrade-shovel');
+            if (state.shovelSpeed <= 0.4) {
+                upgradeShovelBtn.disabled = true;
+                document.getElementById('txt-upgrade-shovel-cost').textContent = "已升至满级";
+                upgradeShovelBtn.classList.add('opacity-50');
+            } else {
+                document.getElementById('txt-upgrade-shovel-cost').textContent = "消耗 4 只活蝉";
+            }
+        }
+
+        // 升级手电筒
+        function upgradeFlashlight() {
+            if (state.rawCicadas >= 5 && state.flashlightRadius < 120) {
+                sound.playClick();
+                state.rawCicadas -= 5;
+                state.flashlightRadius += 30; // 光圈变大
+                state.upgradeCount++;
+                createSizzleText('🔦 手电范围变大！');
+                updateKitchenView();
+            } else {
+                createSizzleText('⚠️ 活蝉不够升级手电啦');
+            }
+        }
+
+        // 升级合金小铲子
+        function upgradeShovel() {
+            if (state.rawCicadas >= 4 && state.shovelSpeed > 0.4) {
+                sound.playClick();
+                state.rawCicadas -= 4;
+                state.shovelSpeed = Math.max(0.4, state.shovelSpeed - 0.5); // 刨土速度加快
+                state.upgradeCount++;
+                createSizzleText('⛏️ 刨土速度大幅度加快！');
+                updateKitchenView();
+            } else {
+                createSizzleText('⚠️ 活蝉不够升级铲子啦');
+            }
+        }
+
+        // 油炸
+        function fryCicada() {
+            if (state.rawCicadas > 0) {
+                sound.playSizzle();
+                state.rawCicadas--;
+                state.friedCicadas++;
+                updateKitchenView();
+
+                createSizzleText('🔥 真香！嘎嘣脆！');
+                createFryVisualEffect();
+            } else {
+                createSizzleText('⚠️ 瓶里已经空了，没金蝉可炸了');
+            }
+        }
+
+        function createSizzleText(text) {
+            document.getElementById('oil-sizzle-txt').textContent = text;
+        }
+
+        // 简易油炸小气泡和金蝉升起动画
+        function createFryVisualEffect() {
+            const container = document.getElementById('fry-animation-area');
+            const particle = document.createElement('div');
+            particle.className = 'w-7 h-7 bg-amber-500 rounded-full flex items-center justify-center text-sm animate-bounce shadow-md border border-amber-400';
+            particle.textContent = '🦗';
+            container.appendChild(particle);
+
+            // 1秒后消失
+            setTimeout(() => {
+                particle.remove();
+            }, 1000);
+        }
+
+        // 游戏最终结算
+        function finishGame() {
+            sound.playClick();
+            showScreen('gameover');
+            
+            document.getElementById('final-fried').textContent = `${state.friedCicadas} 只`;
+            document.getElementById('final-raw').textContent = `${state.rawCicadas} 只`;
+
+            // 山东方言趣味成就划分
+            let title = '口水流了一地';
+            let desc = '今晚基本颗粒无收，可能手电筒电不足，连盘底都铺不满！快再来一局磨炼你的手艺！';
+
+            if (state.friedCicadas >= 5 && state.friedCicadas < 12) {
+                title = '今晚高低整两盅';
+                desc = '一盘香喷喷的油炸金蝉出锅了！买上一瓶冰镇啤酒，鲁中小酒馆今晚为你亮起。';
+            } else if (state.friedCicadas >= 12 && state.friedCicadas < 22) {
+                title = '全庄最靓的仔';
+                desc = '隔壁的小孩都被你的油炸金蝉馋哭了！你是庄里摸金蝉的一把好手，连黑夜都要敬你三分。';
+            } else if (state.friedCicadas >= 22) {
+                title = '金蝉大财阀 🥇';
+                desc = '不可思议！你已经实现了“油炸知了猴自由”！甚至可以拿去早市上卖个高价。你是真正的黑夜猎手！';
+            }
+
+            document.getElementById('achievement-title').textContent = title;
+            document.getElementById('achievement-desc').textContent = desc;
+        }
+
+        // 重玩
+        function restartGame() {
+            sound.playClick();
+            state.rawCicadas = 0;
+            state.friedCicadas = 0;
+            state.timeLeft = 60;
+            state.flashlightRadius = 60;
+            state.shovelSpeed = 1.5;
+            state.entities = [];
+            
+            // 按钮重归可用
+            const upgradeLightBtn = document.getElementById('btn-upgrade-light');
+            upgradeLightBtn.disabled = false;
+            upgradeLightBtn.classList.remove('opacity-50');
+
+            const upgradeShovelBtn = document.getElementById('btn-upgrade-shovel');
+            upgradeShovelBtn.disabled = false;
+            upgradeShovelBtn.classList.remove('opacity-50');
+
+            showScreen('welcome');
+        }
+    </script>
+</body>
+</html>
+```
